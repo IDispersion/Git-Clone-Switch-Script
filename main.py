@@ -118,17 +118,7 @@ def check_repo(repo_path, branch_name, repo_url, username, token):
         logging.info(f"Folder {repo_path} not empty.")
         try:
             repo = Repo(repo_path)
-            repo.git.clean("-fd")
-            repo.git.remote("update", "origin", "--prune")
-            repo.git.reset("--hard")
-            repo.git.gc("--prune=now")
-            repo.git.fetch("--all")
-            try:
-                repo.git.pull()
-                logging.info("Update current repository")
-            except Exception as e:
-                logging.warning(f"Can't update current repository\nWarn log: {e}")
-            #Swap Default Develop
+            # Swap Default Develop
             try:
                 repo.git.checkout("-f", f"develop")
                 logging.info("Switched to remote 'develop'")
@@ -147,8 +137,17 @@ def check_repo(repo_path, branch_name, repo_url, username, token):
                     repo.git.checkout("-f", f"develop")
                 except Exception as error:
                     logging.error(f"Can't switch to remote 'develop', tried #2, skip...\nLogs: {error}")
-
-            #Done Swap
+            # Done Swap
+            repo.git.clean("-fd")
+            repo.git.remote("update", "origin", "--prune")
+            repo.git.reset("--hard")
+            repo.git.gc("--prune=now")
+            repo.git.fetch("--all")
+            try:
+                repo.git.pull()
+                logging.info("Update current repository")
+            except Exception as e:
+                logging.warning(f"Can't update current repository\nWarn log: {e}")
             current_branch = repo.active_branch.name
             if current_branch == branch_name:
                 logging.info("The branch in the local folder is the same as the specified branch. Pulling updates...")
