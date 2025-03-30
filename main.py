@@ -266,8 +266,14 @@ def clear_folder(folder_path):
     try:
         if os.path.exists(folder_path):
             # Recursively deleting a folder with error handling
-            shutil.rmtree(folder_path, onerror=force_remove_readonly)
-            os.remove(folder_path)
+            repo = Repo(folder_path)
+            repo.git.clean("-fdx")
+            repo.git.gc("--prune=now","--aggressive")
+            repo.git.repack("-a", "-d", "--depth=250", "--window=250")
+            # = Old Clearning full delete
+            #shutil.rmtree(folder_path, onerror=force_remove_readonly)
+            #os.remove(folder_path)
+            # =
             logging.info(f"Folder {folder_path} successfully cleared.")
     except Exception as e:
         logging.error(f"Error clearing folder {folder_path}: {e}. Let's try to continue")
