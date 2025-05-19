@@ -267,9 +267,14 @@ def clear_folder(folder_path):
         if os.path.exists(folder_path):
             # Recursively deleting a folder with error handling
             repo = Repo(folder_path)
-            repo.git.clean("-fdx")
-            repo.git.gc("--prune=now","--aggressive")
-            repo.git.repack("-a", "-d", "--depth=250", "--window=250")
+            try:
+                repo.git.clean("-fdx")
+                repo.git.gc("--prune=now","--aggressive")
+                repo.git.repack("-a", "-d", "--depth=250", "--window=250")
+            except Exception as e:
+                logging.warning(f"Can't clear folder {folder_path} - Error: {e}")
+                shutil.rmtree(folder_path, onerror=force_remove_readonly)
+                os.remove(folder_path)
             # = Old Clearning full delete
             #shutil.rmtree(folder_path, onerror=force_remove_readonly)
             #os.remove(folder_path)
@@ -279,20 +284,6 @@ def clear_folder(folder_path):
         logging.error(f"Error clearing folder {folder_path}: {e}. Let's try to continue")
         return
 
-
-def get_repo_folder_name(repo_url):
-    """Extract a folder name from the repository URL."""
-    # Remove .git extension if present
-    if repo_url.endswith('.git'):
-        repo_url = repo_url[:-4]
-
-    # Extract the repository name from the URL
-    repo_name = repo_url.split('/')[-1]
-
-    # Clean the name to ensure it's a valid folder name
-    repo_name = ''.join(c if c.isalnum() or c in ['-', '_'] else '_' for c in repo_name)
-
-    return repo_name
 
 def main():
     try:
@@ -308,20 +299,7 @@ def main():
         token = bitbucket_config.get('token')
 
         paths_config = config.get('paths', {})
-        base_repo_path = paths_config.get('repo_path')
-
-        # Checking command line arguments
-        if len(sys.argv) != 3:
-            raise ValueError("Usage: python main.py <repository link> <branch name>")
-
-        repo_url = sys.argv[1]
-        branch_name = sys.argv[2]
-
-        # Generate project-specific folder name
-        repo_folder_name = get_repo_folder_name(repo_url)
-
-        # Create project-specific repository path
-        repo_path = os.path.join(base_repo_path, repo_folder_name) if base_repo_path else os.path.join(os.getcwd(), repo_folder_name)
+        repo_path = paths_config.get('repo_path')
 
         # Checking count_reset
         count_reset = config.get('count_reset', 0)
@@ -338,8 +316,15 @@ def main():
             save_config(config_path, config)
             logging.info(f"Remaining attempts: {config['count_reset']}")
 
-        if not username or not token:
+        if not username or not token or not repo_path:
             raise ValueError("Incorrect configuration. Check the config.json file.")
+
+        # Checking command line arguments
+        if len(sys.argv) != 3:
+            raise ("Usage: python main.py <repository link> <branch name>")
+
+        repo_url = sys.argv[1]
+        branch_name = sys.argv[2]
 
         # Cloning a repository
         clone_repo(repo_url, branch_name, repo_path, username, token)
